@@ -1,6 +1,3 @@
-# Project
-dist
-
 # Editor
 .vscode/*
 !.vscode/extensions.json
