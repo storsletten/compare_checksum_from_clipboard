@@ -16,11 +16,12 @@ if ([string]::IsNullOrWhiteSpace($clipboardContent)) {
 }
 
 $clipboardMatch = [Regex]::Match($clipboardContent, "\b[0-9a-fA-F]{16,}\b")
+
 if ($clipboardMatch.Success -eq $true) {
  $hash = $clipboardMatch.Value
 } else {
  [System.Windows.MessageBox]::Show(
-  "Could not find a valid string of hexadecimals in the clipboard.",
+  "No valid string of hexadecimals was found in the clipboard.",
   "Missing Checksum",
   [System.Windows.MessageBoxButton]::OK,
   [System.Windows.MessageBoxImage]::Warning
@@ -62,11 +63,9 @@ if ($args.Count -lt 1) {
  $fileDialog = New-Object Microsoft.Win32.OpenFileDialog
  $fileDialog.InitialDirectory = "$env:USERPROFILE\Downloads"
  $dialogResult = $fileDialog.ShowDialog()
-
  if (-not $dialogResult) {
   exit
  }
-
  $filePath = $fileDialog.FileName
 } else {
  $filePath = $args[0]
@@ -74,28 +73,25 @@ if ($args.Count -lt 1) {
 
 if (-not (Test-Path $filePath)) {
  [System.Windows.MessageBox]::Show(
-  "The provided file path does not exist: $filePath",
-  "Invalid File Path",
+  "The file does not exist: $filePath",
+  "Missing File",
   [System.Windows.MessageBoxButton]::OK,
   [System.Windows.MessageBoxImage]::Warning
  )
  exit
 }
 
-$fileSize = (Get-Item $filePath).Length
+$fileSize = (Get-Item -LiteralPath $filePath).Length
 if ($fileSize -gt 250MB) {
  $fileSizeMB = [Math]::Round($fileSize / 1MB, 2)
  Write-Host "Warning: The file size is $fileSizeMB MB, which means it might take a while to finish calculating its checksum."
 }
 
-$certUtilOutput = & CertUtil -hashfile "$filePath" $hashType 2>&1
-
-$certUtilMatch = [Regex]::Match($certUtilOutput, "\b[0-9a-fA-F]{16,}\b")
-if ($certUtilMatch.Success -eq $true) {
- $calculatedHash = $certUtilMatch.Value
-} else {
+try {
+ $calculatedHash = (Get-FileHash -LiteralPath $filePath -Algorithm $hashType).Hash
+} catch {
  [System.Windows.MessageBox]::Show(
-  "Failed to calculate the $hashType checksum of file: $filePath",
+  "Failed to calculate $hashType checksum of the file. $($_.Exception.Message)",
   "Error!",
   [System.Windows.MessageBoxButton]::OK,
   [System.Windows.MessageBoxImage]::Error
