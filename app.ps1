@@ -18,33 +18,83 @@
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName PresentationFramework
 
-$host.UI.RawUI.WindowTitle = "Compare Checksum from Clipboard"
+$host.UI.RawUI.WindowTitle = "Compare Checksum from the Clipboard"
 
-$clipboardContent = [Windows.Clipboard]::GetText()
+$clipboardContent = Get-Clipboard -Format Text
 
-if ([string]::IsNullOrWhiteSpace($clipboardContent)) {
- [System.Windows.MessageBox]::Show(
-  "The clipboard is empty.",
-  "Empty Clipboard",
-  [System.Windows.MessageBoxButton]::OK,
-  [System.Windows.MessageBoxImage]::Warning
- )
- exit
+if (-not $clipboardContent) {
+ $cbFilePaths = Get-Clipboard -Format FileDropList
+ if (-not $cbFilePaths) {
+  if ((Get-Clipboard -Format Image)) {
+   [System.Windows.MessageBox]::Show(
+    "The clipboard contains an image, but this tool needs a checksum as plain text or as a file from the clipboard.",
+    "Image from Clipboard is Not Supported",
+    [System.Windows.MessageBoxButton]::OK,
+    [System.Windows.MessageBoxImage]::Warning
+   )
+  } else {
+   [System.Windows.MessageBox]::Show(
+    "The clipboard is empty.",
+    "Empty Clipboard",
+    [System.Windows.MessageBoxButton]::OK,
+    [System.Windows.MessageBoxImage]::Warning
+   )
+  }
+  exit
+ } elseif ($cbFilePaths.Count -gt 1) {
+  [System.Windows.MessageBox]::Show(
+   "This tool supports no more than one checksum file from the clipboard.",
+   "Multiple Files from the Clipboard",
+   [System.Windows.MessageBoxButton]::OK,
+   [System.Windows.MessageBoxImage]::Warning
+  )
+  exit
+ }
+
+ $cbFilePath = $cbFilePaths[0]
+ $cbFileName = Split-Path $cbFilePath -Leaf
+ $cbFile = Get-Item -LiteralPath $cbFilePath
+ if ($cbFile.Length -gt 1MB) {
+  [System.Windows.MessageBox]::Show(
+   "The file from the clipboard ($cbFileName) is greater than 1 MB in size, and is therefore not considered a valid checksum file.",
+   "The File from the Clipboard is Too Large",
+   [System.Windows.MessageBoxButton]::OK,
+   [System.Windows.MessageBoxImage]::Warning
+  )
+  exit
+ }
+
+ $clipboardContent = Get-Content -LiteralPath $cbFilePath
+ if (-not $clipboardContent) {
+  [System.Windows.MessageBox]::Show(
+   "Found no text content in the file from the clipboard named $cbFileName",
+   "The File from the Clipboard is Empty",
+   [System.Windows.MessageBoxButton]::OK,
+   [System.Windows.MessageBoxImage]::Warning
+  )
+  exit
+ }
+
+ $sourceExtended = "file in the clipboard named `"$cbFileName`""
+ $sourceTitle = "File in the Clipboard"
+} else {
+ $sourceExtended = "clipboard"
+ $sourceTitle = "Clipboard"
 }
 
 $clipboardMatch = [Regex]::Match($clipboardContent, "\b[0-9a-fA-F]{16,}\b")
 
-if ($clipboardMatch.Success -eq $true) {
- $hash = $clipboardMatch.Value
-} else {
+if (-not $clipboardMatch.Success) {
  [System.Windows.MessageBox]::Show(
-  "No valid string of hexadecimals was found in the clipboard.",
-  "Missing Checksum",
+  "The $sourceExtended does not contain a valid string of hexadecimals in plain text format.",
+  "Missing Checksum as Hexadecimals",
   [System.Windows.MessageBoxButton]::OK,
   [System.Windows.MessageBoxImage]::Warning
  )
  exit
 }
+
+$hash = $clipboardMatch.Value
 
 if ($hash.Length -eq 32) {
  $hashType = "MD5"
@@ -58,7 +108,7 @@ if ($hash.Length -eq 32) {
  $hashType = "SHA512"
 } elseif ($hash.Length % 2 -ne 0) {
  [System.Windows.MessageBox]::Show(
-  "The checksum from the clipboard contains $($hash.Length) hexadecimals, but a valid checksum must always have an even number of hexadecimals.",
+  "The checksum from the $sourceExtended contains $($hash.Length) hexadecimals, but a valid checksum must always have an even number of hexadecimals.",
   "Invalid Checksum",
   [System.Windows.MessageBoxButton]::OK,
   [System.Windows.MessageBoxImage]::Warning
@@ -66,7 +116,7 @@ if ($hash.Length -eq 32) {
  exit
 } else {
  [System.Windows.MessageBox]::Show(
-  "The checksum from the clipboard contains $($hash.Length) hexadecimals, which does not correspond with any of the supported algorithms (MD5, SHA1, SHA256, SHA384, or SHA512).",
+  "The checksum from the $sourceExtended contains $($hash.Length) hexadecimals, which does not correspond with any of the supported algorithms (MD5, SHA1, SHA256, SHA384, or SHA512).",
   "Invalid Checksum",
   [System.Windows.MessageBoxButton]::OK,
   [System.Windows.MessageBoxImage]::Warning
@@ -74,7 +124,7 @@ if ($hash.Length -eq 32) {
  exit
 }
 
-$host.UI.RawUI.WindowTitle = "Compare $($hashType) Checksum from Clipboard"
+$host.UI.RawUI.WindowTitle = "Compare $($hashType) Checksum from the $sourceTitle"
 
 if ($args.Count -lt 1) {
  $fileDialog = New-Object Microsoft.Win32.OpenFileDialog
@@ -98,9 +148,9 @@ if (-not (Test-Path $filePath)) {
  exit
 }
 
-$fileSize = (Get-Item -LiteralPath $filePath).Length
-if ($fileSize -gt 250MB) {
- $fileSizeMB = [Math]::Round($fileSize / 1MB, 2)
+$file = Get-Item -LiteralPath $filePath
+if ($file.Length -gt 250MB) {
+ $fileSizeMB = [Math]::Round($file.Length / 1MB, 2)
  Write-Host "Warning: The file size is $fileSizeMB MB, which means it might take a while to finish calculating its checksum."
 }
 
@@ -118,14 +168,14 @@ try {
 
 if ($calculatedHash -ieq $hash) {
  [System.Windows.MessageBox]::Show(
-  "The $hashType checksum from the clipboard matched the file hash.",
+  "The $hashType checksum from the $sourceExtended matched the file hash.",
   "Success!",
   [System.Windows.MessageBoxButton]::OK,
   [System.Windows.MessageBoxImage]::Information
  )
 } else {
  [System.Windows.MessageBox]::Show(
-  "The $hashType checksum from the clipboard did not match the file hash.",
+  "The $hashType checksum from the $sourceExtended did not match the file hash.",
   "Failed Match",
   [System.Windows.MessageBoxButton]::OK,
   [System.Windows.MessageBoxImage]::Warning
