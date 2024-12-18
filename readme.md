@@ -8,7 +8,7 @@ Simply run Setup.bat from this project.
 
 ## Usage
 
-1. Copy a checksum into the clipboard.
+1. Copy a checksum as plain text into the clipboard. Alternatively, copy a checksum file into the clipboard.
 2. Open File Explorer and locate the file you want to compare the checksum against.
 3. Right-click the file and choose "Compare Checksum from Clipboard" in the context menu.
 4. The program will automatically figure out which of the supported algorithms to use, then it calculates the hash of the file before it compares the result with the checksum from the clipboard and produces a message box indicating success or failure.
