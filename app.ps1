@@ -54,9 +54,11 @@ if (-not $clipboardContent) {
  $cbFilePath = $cbFilePaths[0]
  $cbFileName = Split-Path $cbFilePath -Leaf
  $cbFile = Get-Item -LiteralPath $cbFilePath
+ $sourceExtended = "file in the clipboard named `"$cbFileName`""
+ $sourceTitle = "File in the Clipboard"
  if ($cbFile.Length -gt 1MB) {
   [System.Windows.MessageBox]::Show(
-   "The file from the clipboard ($cbFileName) is greater than 1 MB in size, and is therefore not considered a valid checksum file.",
+   "The $sourceExtended is greater than 1 MB in size, and is therefore not considered a valid checksum file.",
    "The File from the Clipboard is Too Large",
    [System.Windows.MessageBoxButton]::OK,
    [System.Windows.MessageBoxImage]::Warning
@@ -67,16 +69,13 @@ if (-not $clipboardContent) {
  $clipboardContent = Get-Content -LiteralPath $cbFilePath
  if (-not $clipboardContent) {
   [System.Windows.MessageBox]::Show(
-   "Found no text content in the file from the clipboard named $cbFileName",
+   "The $sourceExtended does not seem to contain any text.",
    "The File from the Clipboard is Empty",
    [System.Windows.MessageBoxButton]::OK,
    [System.Windows.MessageBoxImage]::Warning
   )
   exit
  }
-
- $sourceExtended = "file in the clipboard named `"$cbFileName`""
- $sourceTitle = "File in the Clipboard"
 } else {
  $sourceExtended = "clipboard"
  $sourceTitle = "Clipboard"
