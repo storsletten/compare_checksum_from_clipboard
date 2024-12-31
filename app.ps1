@@ -15,10 +15,33 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
+$matchSound = "match"
+$mismatchSound = "mismatch"
+
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName PresentationFramework
 
 $host.UI.RawUI.WindowTitle = "Compare Checksum from the Clipboard"
+
+function Play-Sound {
+ $filePath = "$PSScriptRoot\$($args)"
+ if ([Regex]::Match($fileName, '\.[^\\/]+$').Success) {
+  $filePaths = @($filePath)
+ } else {
+  $extensions = @(".mp3", ".wav", ".m4a", ".ogg", ".wma")
+  $filePaths = $extensions | ForEach-Object { "$filePath$_" }
+ }
+
+ foreach ($filePath in $filePaths) {
+  if (Test-Path $filePath) {
+   $mediaPlayer = New-Object System.Windows.Media.MediaPlayer
+   $mediaPlayer.Open([Uri]::new((Resolve-Path $filePath)))
+   $mediaPlayer.Play()
+   break
+  }
+ }
+}
+
 
 $clipboardContent = Get-Clipboard -Format Text
 
@@ -166,6 +189,7 @@ try {
 }
 
 if ($calculatedHash -ieq $hash) {
+ Play-Sound $matchSound
  [System.Windows.MessageBox]::Show(
   "The $hashType checksum from the $sourceExtended matched the file hash.",
   "Success!",
@@ -173,6 +197,7 @@ if ($calculatedHash -ieq $hash) {
   [System.Windows.MessageBoxImage]::Information
  )
 } else {
+ Play-Sound $mismatchSound
  [System.Windows.MessageBox]::Show(
   "The $hashType checksum from the $sourceExtended did not match the file hash.",
   "Failed Match",
